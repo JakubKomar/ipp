@@ -1,0 +1,6 @@
+*.py           eol=lf
+*.php          eol=lf
+*.src          eol=lf
+*.out          eol=lf
+*.in           eol=lf
+*.rc           eol=lf
