@@ -15,9 +15,10 @@ def main():
     root=tree.getroot()                         
     MyProgram=programParsing(root)              #zpracování xml stromu 
 
-    MyProgram.firstrun()                        #první průchod programem-kontrola operátárů a jejich parametů(hlavně syntaktické kontroly), zaznammání pozic skoků
-    #MyProgram.secondrun()                      #druhý průchod programem-samotné provedení instrukcí
+    MyProgram.firstRun()                        #první průchod programem-kontrola operátárů a jejich parametů(hlavně syntaktické kontroly), zaznammání pozic skoků
     print(MyProgram)
+    MyProgram.secondRun()                      #druhý průchod programem-samotné provedení instrukcí
+    print(MyProgram.mem)
     error(0,"program run succesfuly")
     exit(0)
 class Instrucrion(object):
@@ -63,13 +64,13 @@ class Instrucrion(object):
                     error(-1,"arg check error")
             elif(Type!=arg):
                 error(-1,"arg check error")
+
 class operant(object):
     Type=""
     value=""
     placement=None
     def __init__(self,Type,value):
         self.Type=Type
-        print(Type)
         if(self.Type=="var"):
             separated=value.split('@',1)
             if((separated[0]=="GF" or separated[0]=="LF" or separated[0]=="TF")and (separated[1]!="")):
@@ -115,14 +116,73 @@ class jumpTable(object):
             error(32,"duplicit label")
         else:
             self.table[name]=colum
+class frame(object):
+    varS={}
+class memory(object):
+    GF=frame()
+    TF=None
+    LF=None
+    stack=[]
+    def CREATEFRAME(self):
+        self.TF=frame()
+    def PUSHFRAME(self):
+        if(self.TF==None):
+            error(55,"pushing tf frame that not exist")
+        self.stack.append(self.TF)
+        self.LF=stack.stack[-1]
+        self.TF=None
+    def POPFRAME(self):
+        if(not self.stack):
+            error(55,"cant pop from empty stack")
+        self.TF=stack.pop(-1) 
+        self.LF=stack.stack[-1]
+    def DEFVAR(self,args):
+        var=args["1"]
+        if var.placement=="GF":
+            if var.value in self.GF.varS:
+                error(52,"Defvar err-duplicit name of var in GF")
+            self.GF.varS[var.value]=None
+        elif var.placement=="LF":
+            if var.value in stack[-1].varS:
+                error(52,"Defvar err-duplicit name of var in LF")
+            self.stack[-1].varS[var.value]=None
+        elif var.placement=="TF":
+            if var.value in self.TF.varS:
+                error(52,"Defvar err-duplicit name of var in TF")
+            self.TF.varS[var.value]=None
+        else:
+            error(99,"defvar err")
+    def MOVE(self,args):
+        if args["1"].Type=="GF":
+            if not args["1"].value in self.GF.varS:
+                error(52,"Moving destination doasnt exist in GF")
+            self.GF.varS[args["1"].value]=args["2"].value
+        elif args["1"].Type=="LF":
+            if not args["1"].value in stack[-1].varS:
+                error(52,"Moving destination doasnt exist in LF")
+            self.LF.varS[args["1"].value]=args["2"].value
+        elif args["1"].Type=="TF":
+            if not args["1"].value in self.TF.varS:
+                error(52,"Moving destination doasnt exist in TF")
+            self.TF.varS[args["1"].value]=args["2"].value
+    def __repr__(self):
+        TF=None
+        LF=None
+        if(self.TF!=None):
+            TF=self.TF.varS
+        if(self.LF!=None):
+            LF=self.LF.varS
+        return "<Mem - GF: %s  \nLF:\n %s \nTF:\n %s \nstack:\n%s>\n" % (self.GF.varS, TF,LF,self.stack)
 class program(object):   
     instructructions={}
     jumpTable={}
+    mem=memory()
+    counter=1
     def __init__(self,instructructions):
         self.instructructions=instructructions
     def __repr__(self):
         return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jumpTable)    
-    def firstrun(self):
+    def firstRun(self):
         for i in range(1, len(self.instructructions)+1):
             if(self.instructructions[str(i)].Type=="LABEL"):
                 name=self.instructructions[str(i)].args["1"].value
@@ -130,10 +190,85 @@ class program(object):
                     error(32,"duplicit label")
                 else:
                     self.jumpTable[name]=i
-        return
+    def secondRun(self):
+        while self.counter<=len(self.instructructions):
+            self.execute(self.instructructions[str(self.counter)])
+            self.counter+=1
+    def execute(self,instruction):
+        error(0,"executing: %s"%instruction.Type)
+        if instruction.Type=="MOVE":
+            self.mem.MOVE(instruction.args)
+        elif instruction.Type=="CREATEFRAME":
+            pass
+        elif instruction.Type=="PUSHFRAME":
+            pass
+        elif instruction.Type=="POPFRAME":
+            pass
+        elif instruction.Type=="DEFVAR":
+            self.mem.DEFVAR(instruction.args)
+        elif instruction.Type=="CALL":
+            pass
+        elif instruction.Type=="RETURN":
+            pass
+        elif instruction.Type=="PUSHS":
+            pass
+        elif instruction.Type=="POPS":
+            pass
+        elif instruction.Type=="ADD":
+            pass
+        elif instruction.Type=="SUB":
+            pass
+        elif instruction.Type=="MUL":
+            pass
+        elif instruction.Type=="IDIV":
+            pass
+        elif instruction.Type=="LT":
+            pass
+        elif instruction.Type=="QT":
+            pass
+        elif instruction.Type=="EQ":
+            pass
+        elif instruction.Type=="AND":
+            pass
+        elif instruction.Type=="OR":
+            pass
+        elif instruction.Type=="NOT":
+            pass
+        elif instruction.Type=="INT2CHAR":
+            pass
+        elif instruction.Type=="STRI2INT":
+            pass
+        elif instruction.Type=="READ":
+            pass
+        elif instruction.Type=="WRITE":
+            pass
+        elif instruction.Type=="CONCAT":
+            pass
+        elif instruction.Type=="STRLEN":
+            pass
+        elif instruction.Type=="GETCHAR":
+            pass
+        elif instruction.Type=="SETCHAR":
+            pass
+        elif instruction.Type=="TYPE":
+            pass
+        elif instruction.Type=="LABEL":
+            pass
+        elif instruction.Type=="JUMP":
+            pass
+        elif instruction.Type=="JUMPIFEQ":
+            pass
+        elif instruction.Type=="JUMPIFNEQ":
+            pass
+        elif instruction.Type=="EXIT":
+            pass
+        elif instruction.Type=="DPRINT":
+            pass
+        elif instruction.Type=="BREAK":
+            pass
+        else:
+            error(99,"unknow procedure for instruction execution")
 
-
-    
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
     SOURCE=None
@@ -190,7 +325,8 @@ def programParsing(root):
     return program(instructions)
 def error(code,massege):
     print(massege, file=sys.stderr) 
-    exit(code)
+    if(code!=0):
+        exit(code)
 
 main()
 
