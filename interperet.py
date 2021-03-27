@@ -7,6 +7,7 @@ import sys
 import os
 import xml.dom.minidom as minidom
 import xml.etree.ElementTree as ET
+import re
 
 def main():
     INPUT,SOURCE=parametersParse(sys.argv)      #zpracování parametrů
@@ -14,42 +15,40 @@ def main():
     root=tree.getroot()                         
     MyProgram=programParsing(root)              #zpracování xml stromu 
 
-    print(MyProgram)
     MyProgram.firstrun()                        #první průchod programem-kontrola operátárů a jejich parametů(hlavně syntaktické kontroly), zaznammání pozic skoků
     #MyProgram.secondrun()                      #druhý průchod programem-samotné provedení instrukcí
-
+    print(MyProgram)
     error(0,"program run succesfuly")
     exit(0)
 class Instrucrion(object):
     Type=""
     args={}
-    def __init__(self,Type,args):
-        self.Type=Type.upper()
+    def __init__(self,op,args):
+        op=op.upper()
         self.args=args
-    def __repr__(self):
-        return "<Instruction - type: %s,\t args:%s >\n" % (self.Type, self.args)
-    def selfCheck(self):    #syntaktická kontrola instrukcí
-        op=self.Type
         if(op=="RETURN"or op=="CREATEFRAME"or op=="PUSHFRAME"or op=="POPFRAME"or op=="BREAK"):
             self.paramCheck()
         elif(op=="ADD"or op=="SUB"or op=="MUL"or op=="IDIV"or op=="LT"or op=="GT"or op=="EQ"or op=="AND"or op=="OR"or op=="NOT"or op=="STRI2INT"or op=="CONCAT"or op=="GETCHAR"or op=="SETCHAR"):
-            self.paramCheck("VAR","SYM","SYM")
+            self.paramCheck("var","sym","sym")
         elif(op=="MOVE"):
-            self.paramCheck("VAR","SYM")
-        elif(op=="INT2CHAR"or op=="STRLEN"or op=="TYPE"):
-            self.paramCheck("SYM","SYM")
+            self.paramCheck("var","sym")
+        elif(op=="INT2CHAR"or op=="STRLEN"or op=="type"):
+            self.paramCheck("sym","sym")
         elif(op=="DEFVAR"or op=="POPS"):
-            self.paramCheck("VAR")
+            self.paramCheck("var")
         elif(op=="JUMPIFEQ"or op=="JUMPIFNEQ"):
-            self.paramCheck("LABEL","SYM","SYM")
+            self.paramCheck("label","sym","sym")
         elif(op=="LABEL"or op=="CALL"or op=="JUMP"):
-            self.paramCheck("LABEL")
+            self.paramCheck("label")
         elif(op=="PUSHS"or op=="WRITE"or op=="EXIT"or op=="DPRINT"):
-            self.paramCheck("SYM")
+            self.paramCheck("sym")
         elif(op=="READ"):
-            self.paramCheck("VAR","TYPE")
+            self.paramCheck("var","type")
         else:
-            error(21,"Unknown op Code")
+            error(21,"Unknown op Code")     
+        self.Type=op
+    def __repr__(self):
+        return "<Instruction - type: %s,\t args:%s >\n" % (self.Type, self.args)
     def paramCheck(self,*args):     #porovnání typů parametrů instrukcí s očekávanými typy
         if(len(args)!=len(self.args)):
             error(-1,"to few or to much paremeters on instruction")
@@ -59,8 +58,8 @@ class Instrucrion(object):
             if(not(str(paramCounter) in self.args)):
                 error(32,"parameter not found")
             Type=self.args[str(paramCounter)].Type
-            if(arg=="SYM"):
-                if(not(Type=="BOOL" or Type=="VAR" or Type=="STRING" or Type=="INT" or Type=="NIL")):
+            if(arg=="sym"):
+                if(not(Type=="bool" or Type=="var" or Type=="string" or Type=="int" or Type=="nil")):
                     error(-1,"arg check error")
             elif(Type!=arg):
                 error(-1,"arg check error")
@@ -69,27 +68,72 @@ class operant(object):
     value=""
     placement=None
     def __init__(self,Type,value):
-        self.Type=Type.upper()
-        if(self.Type=="VAR"):
+        self.Type=Type
+        print(Type)
+        if(self.Type=="var"):
             separated=value.split('@',1)
             if((separated[0]=="GF" or separated[0]=="LF" or separated[0]=="TF")and (separated[1]!="")):
+                if not re.match(r"^[A-Za-z_\-$&%*!?][A-Za-z0-9_\-$&%*!?]*$", separated[1]):
+                    error(32,"variable name invalid")
                 value=separated[1]
                 self.placement=separated[0]
             else:    
                 error(32,"Varieble format not valid")     
+        elif(self.Type=="bool"):
+            if(value=="true"):
+                value=True
+            elif(value=="false"):
+                value=False
+            else:
+                error(32,"Bool value not valid")
+        elif(self.Type=="int"):
+            if(not re.match(r"^((\+|\-)?(0|[1-9][0-9]*))$", value)):
+                value=int(value)
+            else:
+                error(32,"INT value not valid")
+        elif(self.Type=="string"):
+            pass
+        elif(self.Type=="nil" and value=="nil"):
+            value=None
+        elif(self.Type=="type"):
+            if(not re.match(r"^(nil|bool|int|string)$", value)):
+                error(32,"Type invalid")
+        elif(self.Type=="label"):
+            if(not re.match(r"^([A-Za-z_\-$&%*!?][A-Za-z0-9_\-$&%*!?]*)$", value)):
+                error(32,"Label value not valid")
+        else:   
+            error(32,"unknown type")
         self.value=value
     def __repr__(self):
-        return "<Operant - type: %s, value: %s>" % (self.Type, self.value)
+        return "<Operant - type: %s, value: %s ,placement: %s>" % (self.Type, self.value, self.placement)
+class jumpTable(object):   
+    table={}
+    def __init__(self):
+        self.table={}
+    def addJump(self,name,colum):
+        if(name in self.table):
+            error(32,"duplicit label")
+        else:
+            self.table[name]=colum
 class program(object):   
     instructructions={}
+    jumpTable={}
     def __init__(self,instructructions):
         self.instructructions=instructructions
     def __repr__(self):
-        return "<Program: - instructions:\n %s" % (self.instructructions)    
+        return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jumpTable)    
     def firstrun(self):
         for i in range(1, len(self.instructructions)+1):
-            self.instructructions[str(i)].selfCheck()
+            if(self.instructructions[str(i)].Type=="LABEL"):
+                name=self.instructructions[str(i)].args["1"].value
+                if(name in self.jumpTable):
+                    error(32,"duplicit label")
+                else:
+                    self.jumpTable[name]=i
         return
+
+
+    
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
     SOURCE=None

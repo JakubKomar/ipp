@@ -33,5 +33,15 @@
     <instruction order="9" opcode="WRITE">
         <arg1 type="var">GF@c</arg1>
     </instruction>
+    <instruction order="10" opcode="DEFVAR">
+        <arg1 type="var">GF@d</arg1>
+    </instruction>
+    <instruction order="11" opcode="MOVE">
+        <arg1 type="var">GF@d</arg1>
+        <arg2 type="string">ahoj</arg2>
+    </instruction>
+     <instruction order="12" opcode="LABEL">
+        <arg1 type="label">skok</arg1>
+    </instruction>
 </program>
 
