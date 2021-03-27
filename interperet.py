@@ -88,7 +88,7 @@ class operant(object):
             else:
                 error(32,"Bool value not valid")
         elif(self.Type=="int"):
-            if(not re.match(r"^((\+|\-)?(0|[1-9][0-9]*))$", value)):
+            if(re.match(r"^((\+|\-)?(0|[1-9][0-9]*))$", value)):
                 value=int(value)
             else:
                 error(32,"INT value not valid")
@@ -118,24 +118,69 @@ class jumpTable(object):
             self.table[name]=colum
 class frame(object):
     varS={}
+    def __init__(self):
+        self.varS={}
 class memory(object):
     GF=frame()
     TF=None
     LF=None
     stack=[]
+    def writeToVAR(self,name,frameType,Value):
+        if frameType=="GF":
+            if not name in self.GF.varS:
+                error(52,"Moving destination doesnt exist in GF")
+            self.GF.varS[name]=Value
+        elif frameType=="LF":
+            if not name in stack[-1].varS:
+                error(52,"Moving destination doesnt exist in LF")
+            elif LF==None:
+                error(52,"LF Frame dont exist")
+            self.LF.varS[name]=Value
+        elif frameType=="TF":
+            if not name in self.TF.varS:
+                error(52,"Moving destination doesnt exist in TF")
+            elif TF==None:
+                error(52,"TF Frame dont exist")
+            self.TF.varS[name]=Value
+        else:
+            error(99,"this frame dont exists")
+    def readFromVar(self,name,frameType):
+        Value=None
+        if frameType=="GF":
+            if not name in self.GF.varS:
+                error(52,"Var  doesnt exist in GF")
+            Value=self.GF.varS[name]
+        elif frameType=="LF":
+            if not name in stack[-1].varS:
+                error(52,"Var destination doesnt exist in LF")
+            elif LF==None:
+                error(52,"LF Frame dont exist")
+            Value=self.LF.varS[name]
+        elif frameType=="TF":
+            if not name in self.TF.varS:
+                error(52,"Var destination doesnt exist in TF")
+            elif TF==None:
+                error(52,"TF Frame dont exist")
+            Value=self.TF.varS[name]
+        else:
+            error(99,"this frame dont exists")
+        return Value
     def CREATEFRAME(self):
         self.TF=frame()
     def PUSHFRAME(self):
         if(self.TF==None):
             error(55,"pushing tf frame that not exist")
         self.stack.append(self.TF)
-        self.LF=stack.stack[-1]
+        self.LF=self.stack[-1]
         self.TF=None
     def POPFRAME(self):
         if(not self.stack):
             error(55,"cant pop from empty stack")
-        self.TF=stack.pop(-1) 
-        self.LF=stack.stack[-1]
+        self.TF=self.stack.pop(-1) 
+        if(self.stack):
+            self.LF=self.stack[-1]
+        else:
+            self.LF=None
     def DEFVAR(self,args):
         var=args["1"]
         if var.placement=="GF":
@@ -143,28 +188,21 @@ class memory(object):
                 error(52,"Defvar err-duplicit name of var in GF")
             self.GF.varS[var.value]=None
         elif var.placement=="LF":
-            if var.value in stack[-1].varS:
+            if var.value in self.stack[-1].varS:
                 error(52,"Defvar err-duplicit name of var in LF")
+            elif self.LF==None:
+                error(52,"LF Frame dont exist")
             self.stack[-1].varS[var.value]=None
         elif var.placement=="TF":
             if var.value in self.TF.varS:
                 error(52,"Defvar err-duplicit name of var in TF")
+            elif self.TF==None:
+                error(52,"TF Frame dont exist")
             self.TF.varS[var.value]=None
         else:
             error(99,"defvar err")
     def MOVE(self,args):
-        if args["1"].Type=="GF":
-            if not args["1"].value in self.GF.varS:
-                error(52,"Moving destination doasnt exist in GF")
-            self.GF.varS[args["1"].value]=args["2"].value
-        elif args["1"].Type=="LF":
-            if not args["1"].value in stack[-1].varS:
-                error(52,"Moving destination doasnt exist in LF")
-            self.LF.varS[args["1"].value]=args["2"].value
-        elif args["1"].Type=="TF":
-            if not args["1"].value in self.TF.varS:
-                error(52,"Moving destination doasnt exist in TF")
-            self.TF.varS[args["1"].value]=args["2"].value
+        self.writeToVAR(args["1"].value,args["1"].placement,args["2"].value,)
     def __repr__(self):
         TF=None
         LF=None
@@ -172,7 +210,7 @@ class memory(object):
             TF=self.TF.varS
         if(self.LF!=None):
             LF=self.LF.varS
-        return "<Mem - GF: %s  \nLF:\n %s \nTF:\n %s \nstack:\n%s>\n" % (self.GF.varS, TF,LF,self.stack)
+        return "<Mem - GF:\n %s  \nLF:\n %s \nTF:\n %s \nstack:\n%s>\n" % (self.GF.varS,LF, TF,self.stack)
 class program(object):   
     instructructions={}
     jumpTable={}
@@ -199,11 +237,11 @@ class program(object):
         if instruction.Type=="MOVE":
             self.mem.MOVE(instruction.args)
         elif instruction.Type=="CREATEFRAME":
-            pass
+            self.mem.CREATEFRAME()
         elif instruction.Type=="PUSHFRAME":
-            pass
+            self.mem.PUSHFRAME()
         elif instruction.Type=="POPFRAME":
-            pass
+            self.mem.POPFRAME()
         elif instruction.Type=="DEFVAR":
             self.mem.DEFVAR(instruction.args)
         elif instruction.Type=="CALL":
@@ -241,7 +279,7 @@ class program(object):
         elif instruction.Type=="READ":
             pass
         elif instruction.Type=="WRITE":
-            pass
+            self.WRITE(instruction.args)
         elif instruction.Type=="CONCAT":
             pass
         elif instruction.Type=="STRLEN":
@@ -268,6 +306,11 @@ class program(object):
             pass
         else:
             error(99,"unknow procedure for instruction execution")
+    def WRITE(self,args):
+        if(args["1"].Type=="var"):
+            print(self.mem.readFromVar(args["1"].value,args["1"].placement))
+        else:
+            print(args["1"].value) 
 
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None

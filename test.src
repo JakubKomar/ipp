@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<program language="IPPcode21">
+    <instruction order="1" opcode="DEFVAR">
+        <arg1 type="var">GF@a</arg1>
+    </instruction>
+    <instruction order="2" opcode="MOVE">
+        <arg1 type="var">GF@a</arg1>
+        <arg2 type="string">hello word</arg2>
+    </instruction>
+    <instruction order="3" opcode="WRITE">
+        <arg1 type="var">GF@a</arg1>
+    </instruction>
+    <instruction order="4" opcode="WRITE">
+        <arg1 type="int">55</arg1>
+    </instruction>
+    <instruction order="5" opcode="CREATEFRAME">
+    </instruction>
+    <instruction order="6" opcode="DEFVAR">
+        <arg1 type="var">TF@b</arg1>
+    </instruction>
+    <instruction order="7" opcode="DEFVAR">
+        <arg1 type="var">TF@c</arg1>
+    </instruction>
+    <instruction order="8" opcode="PUSHFRAME">
+    </instruction>
+    <instruction order="9" opcode="DEFVAR">
+        <arg1 type="var">LF@d</arg1>
+    </instruction>
+    <instruction order="10" opcode="POPFRAME">
+    </instruction>
+</program>
+
