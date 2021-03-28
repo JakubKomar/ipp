@@ -31,7 +31,7 @@ class Instrucrion(object):
             self.paramCheck("var","sym","sym")
         elif(op=="MOVE" or op=="NOT"):
             self.paramCheck("var","sym")
-        elif(op=="INT2CHAR"or op=="STRLEN"or op=="type"):
+        elif(op=="INT2CHAR"or op=="STRLEN"or op=="TYPE"):
             self.paramCheck("sym","sym")
         elif(op=="DEFVAR"or op=="POPS"):
             self.paramCheck("var")
@@ -122,6 +122,13 @@ class frame(object):
     varS={}
     def __init__(self):
         self.varS={}
+class notInicializet:
+    def __init__(self):
+        pass
+    def __str__(self):
+        return "not inicializet"
+    def __repr__(self):
+        return "var not inicializet"
 class memory(object):
     GF=frame()
     TF=None
@@ -193,19 +200,19 @@ class memory(object):
         if var.placement=="GF":
             if var.value in self.GF.varS:
                 error(52,"Defvar err-duplicit name of var in GF")
-            self.GF.varS[var.value]=None
+            self.GF.varS[var.value]=notInicializet()
         elif var.placement=="LF":
             if var.value in self.stack[-1].varS:
                 error(52,"Defvar err-duplicit name of var in LF")
             elif self.LF==None:
                 error(52,"LF Frame dont exist")
-            self.stack[-1].varS[var.value]=None
+            self.stack[-1].varS[var.value]=notInicializet()
         elif var.placement=="TF":
             if var.value in self.TF.varS:
                 error(52,"Defvar err-duplicit name of var in TF")
             elif self.TF==None:
                 error(52,"TF Frame dont exist")
-            self.TF.varS[var.value]=None
+            self.TF.varS[var.value]=notInicializet()
         else:
             error(99,"defvar err")
     def MOVE(self,args):
@@ -313,15 +320,15 @@ class program(object):
         elif instruction.Type=="SETCHAR":
             self.SETCHAR(instruction.args)
         elif instruction.Type=="TYPE":
-            pass
+            self.TYPE(instruction.args)
         elif instruction.Type=="LABEL":
             pass
         elif instruction.Type=="JUMP":
             self.JUMP(instruction.args)
         elif instruction.Type=="JUMPIFEQ":
-            pass
+            self.JUMPIFEQ(instruction.args)
         elif instruction.Type=="JUMPIFNEQ":
-            pass
+            self.JUMPIFNEQ(instruction.args)
         elif instruction.Type=="EXIT":
             self.EXIT(instruction.args)
         elif instruction.Type=="DPRINT":
@@ -350,6 +357,20 @@ class program(object):
         else:
             error(-1,"Jump label isnt in code")
         pass
+    def JUMPIFEQ(self,args):
+        a=self.loadValue(args["2"])
+        b=self.loadValue(args["3"])
+        if(type(a)==None) or (type(b)==None):
+            error(53,"JUMPIFEQ err- nil value in params is permited")
+        if type(a)==type(b) and a==b:
+            self.JUMP(args)
+    def JUMPIFNEQ(self,args):
+        a=self.loadValue(args["2"])
+        b=self.loadValue(args["3"])
+        if(type(a)==None) or (type(b)==None):
+            error(53,"JUMPIFEQ err- nil value in params is permited")
+        if type(a)!=type(b) or a!=b:
+            self.JUMP(args)     
     def DPRINT(self,args):
         error(0,str(self.loadValue(args["1"])))
     def BREAK(self):
@@ -515,6 +536,22 @@ class program(object):
             error(58,"SETCHAR err-Char in string is not reacheble")
         a=a[:b]+c[0]+a[b+1:]
         self.mem.writeToVAR(args["1"],a)
+    def TYPE(self,args):
+        a=self.loadValue(args["2"])
+        if type(a)==int:
+            b="int"
+        elif type(a)==str:
+            b="string"
+        elif type(a)==bool:
+            b="bool"
+        elif type(a)==None:
+            b="nil"
+        elif type(a)==notInicializet:
+            b=""
+        else:
+            error(99,"unknown var type")
+        self.mem.writeToVAR(args["1"],b)
+        
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
     SOURCE=sys.stdin
