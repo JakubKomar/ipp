@@ -289,7 +289,7 @@ class program(object):
         elif instruction.Type=="INT2CHAR":
             self.INT2CHAR(instruction.args)
         elif instruction.Type=="STRI2INT":
-            pass
+            self.STRI2INT(instruction.args)
         elif instruction.Type=="READ":
             pass
         elif instruction.Type=="WRITE":
@@ -428,6 +428,19 @@ class program(object):
             c=chr(a)
         except :
             error(58,"INT2CHAR converzion error")
+        self.mem.writeToVAR(args["1"],c)
+    def STRI2INT(self,args):
+        a=self.loadValue(args["2"])
+        b=self.loadValue(args["3"])
+        c=None
+        if type(a)!=str:
+                error(-1,"STR2INT 2 operant isnt string")
+        elif type(b)!=int:
+            error(-1,"STR2INT 3 operant isnt int")
+        try:
+            c=ord(a[b])
+        except:
+            error(58,"STR2INT converzion failed")
         self.mem.writeToVAR(args["1"],c)
 
 
