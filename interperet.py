@@ -14,7 +14,7 @@ def main():
     tree=xmlTreeParsing(SOURCE)                 #získání ze xml stromovou strukturu
     root=tree.getroot()                         
     MyProgram=programParsing(root)              #zpracování xml stromu 
-
+    MyProgram.setInput(INPUT)
     MyProgram.firstRun()                        #první průchod programem-kontrola operátárů a jejich parametů(hlavně syntaktické kontroly), zaznammání pozic skoků
     MyProgram.secondRun()                      #druhý průchod programem-samotné provedení instrukcí
     error(0,"program run succesfuly")
@@ -225,12 +225,22 @@ class program(object):
     mem=memory()
     counter=1
     procesedInstruct=0
+    inputSource=None
+    inputFile=None
+    inputFileErr=False
     def __init__(self,instructructions):
         self.instructructions=instructructions
         self.jTable=jumpTable()
         self.mem=memory()
         self.counter=1
         self.procesedInstruct=0
+    def setInput(self,InputS):
+        self.inputSource=InputS
+    def openFile(self):
+        try:
+            self.inputFile=open(self.inputSource,"r")
+        except:
+            inputFileErr=True
     def __repr__(self):
         return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jTable)    
     def firstRun(self):
@@ -291,17 +301,17 @@ class program(object):
         elif instruction.Type=="STRI2INT":
             self.STRI2INT(instruction.args)
         elif instruction.Type=="READ":
-            pass
+            self.READ(instruction.args)
         elif instruction.Type=="WRITE":
             self.WRITE(instruction.args)
         elif instruction.Type=="CONCAT":
-            pass
+            self.CONCAT(instruction.args)
         elif instruction.Type=="STRLEN":
-            pass
+            self.STRLEN(instruction.args)
         elif instruction.Type=="GETCHAR":
-            pass
+            self.GETCHAR(instruction.args)
         elif instruction.Type=="SETCHAR":
-            pass
+            self.SETCHAR(instruction.args)
         elif instruction.Type=="TYPE":
             pass
         elif instruction.Type=="LABEL":
@@ -442,11 +452,72 @@ class program(object):
         except:
             error(58,"STR2INT converzion failed")
         self.mem.writeToVAR(args["1"],c)
-
-
+    def READ(self,args):  
+        c=None
+        if(self.inputSource!=None):
+            if(self.inputFile==None):
+                self.openFile()
+            elif(not self.inputFileErr):
+                c=self.inputFile.readline()
+            else:
+                c=None
+            pass
+        else:
+            c=input()
+        if(args["2"].value=="string"):
+            pass
+        elif(args["2"].value=="int" and not self.inputFileErr):
+            try:
+                c=int(c)
+            except ValueError:
+                c=None
+        elif(args["2"].value=="bool" and not self.inputFileErr):
+            c=c.upper()
+            if(c=="TRUE"):
+                c=True
+            else:
+                c=False
+        self.mem.writeToVAR(args["1"],c)
+    def CONCAT(self,args):
+        a=self.loadValue(args["2"])
+        b=self.loadValue(args["3"])
+        c=None
+        if (type(a)!=type(b)) or (type(a)!=str):
+            error(-1,"Concat operants isnt string")
+        c=a+b
+        self.mem.writeToVAR(args["1"],c)
+    def STRLEN(self,args):
+        a=self.loadValue(args["2"])
+        c=None
+        if (type(a)!=str):
+            error(-1,"STRLEN err- operants isnt string")
+        c=len(a)
+        self.mem.writeToVAR(args["1"],c)
+    def GETCHAR(self,args):
+        a=self.loadValue(args["2"])
+        b=self.loadValue(args["3"])
+        c=None
+        if (type(a)!=str or type(b)!=int):
+            error(-1,"Getchar  operants isnt valid")
+        if(len(a)<=b or b<0):
+            error(58,"GETCHAR err-Char in string is not reacheble")
+        c=a[b]
+        self.mem.writeToVAR(args["1"],c)
+    def SETCHAR(self,args):
+        a=self.loadValue(args["1"])
+        b=self.loadValue(args["2"])
+        c=self.loadValue(args["3"])
+        if (type(a)!=str or type(b)!=int or type(c)!=str):
+            error(-1,"SETCHAR  operants isnt valid")
+        if(c==""):
+            error(58,"Getchar  operants isnt valid")
+        if(len(a)<=b or b<0):
+            error(58,"SETCHAR err-Char in string is not reacheble")
+        a=a[:b]+c[0]+a[b+1:]
+        self.mem.writeToVAR(args["1"],a)
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
-    SOURCE=None
+    SOURCE=sys.stdin
     if(len(argv)==2 or len(argv)==3):
         for arg in argv[1:] :
             if(arg=="--help"):
@@ -465,10 +536,7 @@ def parametersParse(argv):  #funkce pro zpracování parametrů
     return INPUT,SOURCE
 def xmlTreeParsing(SOURCE):
     try:
-        if (SOURCE!=None):
-            tree=ET.parse(SOURCE)
-        else :
-            tree=ET.parse(sys.stdin)
+        tree=ET.parse(SOURCE)
     except OSError: 
         error(11,"file not found")
     except:
