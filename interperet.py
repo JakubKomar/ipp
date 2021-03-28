@@ -109,8 +109,10 @@ class operant(object):
         return "<Operant - type: %s, value: %s ,placement: %s>" % (self.Type, self.value, self.placement)
 class jumpTable(object):   
     table={}
+    callStack=[]
     def __init__(self):
         self.table={}
+        callStack=[]
     def addJump(self,name,colum):
         if(name in self.table):
             error(32,"duplicit label")
@@ -204,6 +206,7 @@ class memory(object):
     def MOVE(self,args):
         self.writeToVAR(args["1"].value,args["1"].placement,args["2"].value,)
     def __repr__(self):
+        GF=frame()
         TF=None
         LF=None
         if(self.TF!=None):
@@ -213,21 +216,21 @@ class memory(object):
         return "<Mem - GF:\n %s  \nLF:\n %s \nTF:\n %s \nstack:\n%s>\n" % (self.GF.varS,LF, TF,self.stack)
 class program(object):   
     instructructions={}
-    jumpTable={}
+    jTable=jumpTable()
     mem=memory()
     counter=1
     def __init__(self,instructructions):
         self.instructructions=instructructions
     def __repr__(self):
-        return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jumpTable)    
+        return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jTable)    
     def firstRun(self):
         for i in range(1, len(self.instructructions)+1):
             if(self.instructructions[str(i)].Type=="LABEL"):
                 name=self.instructructions[str(i)].args["1"].value
-                if(name in self.jumpTable):
+                if(name in self.jTable.table):
                     error(32,"duplicit label")
                 else:
-                    self.jumpTable[name]=i
+                    self.jTable.table[name]=i
     def secondRun(self):
         while self.counter<=len(self.instructructions):
             self.execute(self.instructructions[str(self.counter)])
@@ -245,9 +248,9 @@ class program(object):
         elif instruction.Type=="DEFVAR":
             self.mem.DEFVAR(instruction.args)
         elif instruction.Type=="CALL":
-            pass
+            self.CALL(instruction.args)
         elif instruction.Type=="RETURN":
-            pass
+            self.RETURN()
         elif instruction.Type=="PUSHS":
             pass
         elif instruction.Type=="POPS":
@@ -293,17 +296,17 @@ class program(object):
         elif instruction.Type=="LABEL":
             pass
         elif instruction.Type=="JUMP":
-            pass
+            self.JUMP(instruction.args)
         elif instruction.Type=="JUMPIFEQ":
             pass
         elif instruction.Type=="JUMPIFNEQ":
             pass
         elif instruction.Type=="EXIT":
-            pass
+            self.EXIT(instruction.args)
         elif instruction.Type=="DPRINT":
-            pass
+            self.DPRINT()
         elif instruction.Type=="BREAK":
-            pass
+            self.BREAK()
         else:
             error(99,"unknow procedure for instruction execution")
     def WRITE(self,args):
@@ -311,6 +314,33 @@ class program(object):
             print(self.mem.readFromVar(args["1"].value,args["1"].placement))
         else:
             print(args["1"].value) 
+    def CALL(self,args):
+        self.jTable.callStack.append((self.counter))
+        self.JUMP(args)
+    def RETURN(self):
+        if(self.jTable.callStack):
+            self.counter=self.jTable.callStack[-1]
+            self.jTable.callStack.pop(-1)
+        else:
+            error(56,"return stack is empty")
+    def JUMP(self,args):
+        if args["1"].value in self.jTable.table:
+            self.counter=self.jTable.table[args["1"].value]
+        else:
+            error(-1,"Jump label isnt in code")
+        pass
+    def DPRINT(self,args):
+        error(0,str(args["1"].value))
+    def BREAK(self):
+        error(0,"Pozition: %d \n%s"% (self.counter,self))
+    def EXIT(self,args):
+        retCode=0
+        try:
+            retCode=int(args["1"].value)
+        except:
+            retCode=57
+        exit(retCode)
+
 
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
