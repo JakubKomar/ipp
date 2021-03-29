@@ -7,7 +7,7 @@
     $files=array(   //cesty k externím souborům
         "dir"           =>"./",
         "parseScript"   =>"./parse.php",
-        "intScript"     =>"./interperet.py",
+        "intScript"     =>"./interpret.py",
         "jexamxml"      =>"/pub/courses/ipp/jexamxml/jexamxml.jar",
         "jexamcfg"      =>"/pub/courses/ipp/jexamxml/options",
         );
@@ -88,7 +88,7 @@
         if(isset($options[ "jexamcfg"]))    //konfigurační soubor
             $files["jexamcfg"]=$options["jexamcfg"];  
         
-        if($parse_only&&(!file_exists($files["jexamcfg"])||!file_exists($files["jexamxml"])))
+        if(!$int_only&&(!file_exists($files["jexamcfg"])||!file_exists($files["jexamxml"])))
         {
             fprintf(STDERR,"Jaxam files path are wrong\n");
             exit(41);
@@ -201,7 +201,7 @@
                     $failed=TRUE;
                 }
             }
-            exec("python3 ".$files["intScript"]." <".$in." --source=temporary.xml 2>/dev/null >out.temp",$output , $rv);               //iterpretace
+            exec("python3 ".$files["intScript"]." --input=".$in." --source=temporary.xml 2>/dev/null >out.temp",$output , $rv);               //iterpretace
             if($rv!=0)
             {
                 if($erv==$rv)

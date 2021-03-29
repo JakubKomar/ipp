@@ -93,7 +93,10 @@ class operant(object):
             else:
                 error(32,"INT value not valid")
         elif(self.Type=="string"):
-            pass
+            if value==None:
+                value=""
+            else:
+                value=stringConverter(value)
         elif(self.Type=="nil" and value=="nil"):
             value=None
         elif(self.Type=="type"):
@@ -145,7 +148,7 @@ class memory(object):
         elif frameType=="LF":
             if self.LF==None:
                 error(55,"LF Frame dont exist")
-            elif not name in stack[-1].varS:
+            elif not name in self.stack[-1].varS:
                 error(54,"Moving destination doesnt exist in LF")
             self.LF.varS[name]=Value
         elif frameType=="TF":
@@ -156,7 +159,7 @@ class memory(object):
             self.TF.varS[name]=Value
         else:
             error(99,"this frame type dont exists")
-    def readFromVar(self,arg):
+    def readFromVar(self,arg,forType=False):
         Value=None
         name=arg.value
         frameType=arg.placement
@@ -178,6 +181,8 @@ class memory(object):
             Value=self.TF.varS[name]
         else:
             error(99,"this frame type dont exists")
+        if (type(Value)==notInicializet) and not forType:
+            error(56,"Reading from uninicializet var")
         return Value
     def CREATEFRAME(self):
         self.TF=frame()
@@ -309,7 +314,7 @@ class program(object):
         elif instruction.Type=="READ":
             self.READ(instruction.args)
         elif instruction.Type=="WRITE":
-            self.WRITE(instruction.args)
+            self.WRITE(instruction.args,False)
         elif instruction.Type=="CONCAT":
             self.CONCAT(instruction.args)
         elif instruction.Type=="STRLEN":
@@ -331,22 +336,37 @@ class program(object):
         elif instruction.Type=="EXIT":
             self.EXIT(instruction.args)
         elif instruction.Type=="DPRINT":
-            self.DPRINT(instruction.args)
+            self.WRITE(instruction.args,True)
         elif instruction.Type=="BREAK":
             self.BREAK()
         else:
             error(99,"unknow procedure for instruction execution")
-    def WRITE(self,args):
+    def WRITE(self,args,debug):
         if(args["1"].Type=="var"):
             value=self.mem.readFromVar(args["1"])
-        else:
-            value=args["1"].value
-        if type(value)==bool:
-            if(value==True):
-                value="true"
+            if type(value)==bool:
+                if(value==True):
+                    value="true"
+                else:
+                    value="false"
+            elif type(value)==str or type(value)==int:
+                pass
             else:
-                value="false"
-        print(value, end ="")
+                return
+        else:
+            if args["1"].Type=="bool":
+                if(args["1"].value==True):
+                    value="true"
+                else:
+                    value="false"
+            elif args["1"].Type=="string" or args["1"].Type=="int":
+                value=args["1"].value
+            else:
+                return
+        if debug:
+            print(value,end ="", file=sys.stderr) 
+        else:
+            print(value, end ="")
     def CALL(self,args):
         self.jTable.callStack.append((self.counter))
         self.JUMP(args)
@@ -372,24 +392,28 @@ class program(object):
     def JUMPIFNEQ(self,args):
         a=self.loadValue(args["2"])
         b=self.loadValue(args["3"])
-        if(type(a)==None) or (type(b)==None):
+        if(type(a)!=type(b) or type(a)==None):
             error(53,"JUMPIFEQ err- nil value in params is permited")
-        if type(a)!=type(b) or a!=b:
+        if a!=b:
             self.JUMP(args)     
     def DPRINT(self,args):
         error(0,str(self.loadValue(args["1"])))
     def BREAK(self):
         error(0,"================================================\nDebug write\nPozition in code: %d\nCount of executed instructions: %d\nVAR stack:%s\nMemory:\n%s================================================"% (self.counter,self.procesedInstruct,self.mem.varStack,self.mem))
     def EXIT(self,args):
-        retCode=0
+        retCode=-1
         try:
             retCode=int(self.loadValue(args["1"]))
-        except:
-            retCode=57
+        except  ValueError:
+            exit(53)
+        except  TypeError:
+            exit(53)
+        if retCode <0 or retCode>49:
+            exit(57)
         exit(retCode)
-    def loadValue(self,arg):
+    def loadValue(self,arg,forType=False):
         if arg.Type=="var":
-            value=self.mem.readFromVar(arg)
+            value=self.mem.readFromVar(arg,forType)
         else:
             value=arg.value
         return value
@@ -459,7 +483,7 @@ class program(object):
         a=self.loadValue(args["2"])
         c=None
         if type(a)!=int:
-            error(58,"INT2CHAR err-operant is not int")
+            error(53,"INT2CHAR err-operant is not int")
         try:
             c=chr(a)
         except :
@@ -470,9 +494,9 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if type(a)!=str:
-                error(58,"STR2INT 2 operant isnt string")
+                error(53,"STR2INT 2 operant isnt string")
         elif type(b)!=int:
-            error(58,"STR2INT 3 operant isnt int")
+            error(53,"STR2INT 3 operant isnt int")
         try:
             c=ord(a[b])
         except:
@@ -480,43 +504,57 @@ class program(object):
         self.mem.writeToVAR(args["1"],c)
     def READ(self,args):  
         c=None
+        failed=False
         if(self.inputSource!=None):
             if(self.inputFile==None):
                 self.openFile()
-            elif(not self.inputFileErr):
-                c=self.inputFile.readline()
+            if(not self.inputFileErr):
+                try:
+                    c=self.inputFile.readline()
+                    if type(c)==str and c=='':
+                        failed=True
+                    else:
+                        c= re.sub(r"\n","", c)
+                except:
+                    failed=True
             else:
-                c=None
-            pass
+                failed=True
         else:
-            c=input()
-        if(args["2"].value=="string"):
-            pass
-        elif(args["2"].value=="int" and not self.inputFileErr):
             try:
-                c=int(c)
-            except ValueError:
-                c=None
-        elif(args["2"].value=="bool" and not self.inputFileErr):
-            c=c.upper()
-            if(c=="TRUE"):
-                c=True
-            else:
-                c=False
+                c=input()
+            except:
+                failed=True
+        if not failed and type(c)==str:
+            if(args["2"].value=="string"):
+                c=stringConverter(c)
+            elif(args["2"].value=="int" ):
+                try:
+                    c=int(c)
+                except :
+                    c=None
+            elif(args["2"].value=="bool"):
+                c=c.upper()
+                if(c=="TRUE"):
+                    c=True
+                else:
+                    c=False
+        else:
+            self.mem.writeToVAR(args["1"],None)
+            return
         self.mem.writeToVAR(args["1"],c)
     def CONCAT(self,args):
         a=self.loadValue(args["2"])
         b=self.loadValue(args["3"])
         c=None
         if (type(a)!=type(b)) or (type(a)!=str):
-            error(58,"Concat operants isnt string")
+            error(53,"Concat operants isnt string")
         c=a+b
         self.mem.writeToVAR(args["1"],c)
     def STRLEN(self,args):
         a=self.loadValue(args["2"])
         c=None
         if (type(a)!=str):
-            error(58,"STRLEN err- operants isnt string")
+            error(53,"STRLEN err- operants isnt string")
         c=len(a)
         self.mem.writeToVAR(args["1"],c)
     def GETCHAR(self,args):
@@ -524,7 +562,7 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if (type(a)!=str or type(b)!=int):
-            error(58,"Getchar  operants isnt valid")
+            error(53,"Getchar  operants isnt valid")
         if(len(a)<=b or b<0):
             error(58,"GETCHAR err-Char in string is not reacheble")
         c=a[b]
@@ -534,7 +572,7 @@ class program(object):
         b=self.loadValue(args["2"])
         c=self.loadValue(args["3"])
         if (type(a)!=str or type(b)!=int or type(c)!=str):
-            error(58,"SETCHAR  operants isnt valid")
+            error(53,"SETCHAR  operants isnt valid")
         if(c==""):
             error(58,"Getchar  operants isnt valid")
         if(len(a)<=b or b<0):
@@ -542,21 +580,28 @@ class program(object):
         a=a[:b]+c[0]+a[b+1:]
         self.mem.writeToVAR(args["1"],a)
     def TYPE(self,args):
-        a=self.loadValue(args["2"])
+        a=self.loadValue(args["2"],True)
         if type(a)==int:
             b="int"
         elif type(a)==str:
             b="string"
         elif type(a)==bool:
             b="bool"
-        elif type(a)==None:
+        elif a==None:
             b="nil"
         elif type(a)==notInicializet:
             b=""
         else:
             error(99,"unknown var type")
         self.mem.writeToVAR(args["1"],b)
-        
+def stringConverter(old):
+    new=bytes(old,encoding="utf-8")
+    regex = re.compile(rb"\\(\d{1,3})")
+    def replace(match):
+        return int(match.group(1)).to_bytes(1, byteorder="big")
+    new = regex.sub(replace, new)
+    new= new.decode("utf-8")
+    return new
 def parametersParse(argv):  #funkce pro zpracování parametrů
     INPUT=None
     SOURCE=sys.stdin
