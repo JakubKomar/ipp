@@ -8,6 +8,7 @@ import os
 import xml.dom.minidom as minidom
 import xml.etree.ElementTree as ET
 import re
+import collections
 
 def main():
     INPUT,SOURCE=parametersParse(sys.argv)      #zpracování parametrů
@@ -17,7 +18,6 @@ def main():
     MyProgram.setInput(INPUT)
     MyProgram.firstRun()                        #první průchod programem-kontrola operátárů a jejich parametů(hlavně syntaktické kontroly), zaznammání pozic skoků
     MyProgram.secondRun()                      #druhý průchod programem-samotné provedení instrukcí
-    error(0,"program run succesfuly")
     exit(0)
 class Instrucrion(object):
     Type=""
@@ -44,13 +44,13 @@ class Instrucrion(object):
         elif(op=="READ"):
             self.paramCheck("var","type")
         else:
-            error(21,"Unknown op Code")     
+            error(32,"Unknown op Code")     
         self.Type=op
     def __repr__(self):
         return "<Instruction - type: %s,\t args:%s >\n" % (self.Type, self.args)
     def paramCheck(self,*args):     #porovnání typů parametrů instrukcí s očekávanými typy
         if(len(args)!=len(self.args)):
-            error(-1,"to few or to much paremeters on instruction")
+            error(32,"to few or to much paremeters on instruction")
         paramCounter=0
         for arg in args:
             paramCounter+=1
@@ -59,9 +59,9 @@ class Instrucrion(object):
             Type=self.args[str(paramCounter)].Type
             if(arg=="sym"):
                 if(not(Type=="bool" or Type=="var" or Type=="string" or Type=="int" or Type=="nil")):
-                    error(-1,"arg check error")
+                    error(32,"arg check error")
             elif(Type!=arg):
-                error(-1,"arg check error")
+                error(32,"arg check error")
 class operant(object):
     Type=""
     value=""
@@ -140,44 +140,44 @@ class memory(object):
         name=arg.value
         if frameType=="GF":
             if not name in self.GF.varS:
-                error(52,"Moving destination doesnt exist in GF")
+                error(54,"Moving destination doesnt exist in GF")
             self.GF.varS[name]=Value
         elif frameType=="LF":
-            if not name in stack[-1].varS:
-                error(52,"Moving destination doesnt exist in LF")
-            elif LF==None:
-                error(52,"LF Frame dont exist")
+            if self.LF==None:
+                error(55,"LF Frame dont exist")
+            elif not name in stack[-1].varS:
+                error(54,"Moving destination doesnt exist in LF")
             self.LF.varS[name]=Value
         elif frameType=="TF":
-            if not name in self.TF.varS:
-                error(52,"Moving destination doesnt exist in TF")
-            elif TF==None:
-                error(52,"TF Frame dont exist")
+            if self.TF==None:
+                error(55,"TF Frame dont exist")
+            elif not name in self.TF.varS:
+                error(54,"Moving destination doesnt exist in TF")
             self.TF.varS[name]=Value
         else:
-            error(99,"this frame dont exists")
+            error(99,"this frame type dont exists")
     def readFromVar(self,arg):
         Value=None
         name=arg.value
         frameType=arg.placement
         if frameType=="GF":
             if not name in self.GF.varS:
-                error(52,"Var  doesnt exist in GF")
+                error(54,"Var  doesnt exist in GF")
             Value=self.GF.varS[name]
         elif frameType=="LF":
-            if not name in stack[-1].varS:
-                error(52,"Var destination doesnt exist in LF")
-            elif LF==None:
-                error(52,"LF Frame dont exist")
+            if self.LF==None:
+                error(55,"LF Frame dont exist")
+            elif not name in self.stack[-1].varS:
+                error(54,"Var destination doesnt exist in LF")
             Value=self.LF.varS[name]
         elif frameType=="TF":
-            if not name in self.TF.varS:
-                error(52,"Var destination doesnt exist in TF")
-            elif TF==None:
-                error(52,"TF Frame dont exist")
+            if self.TF==None:
+                error(55,"TF Frame dont exist")
+            elif not name in self.TF.varS:
+                error(54,"Var destination doesnt exist in TF")
             Value=self.TF.varS[name]
         else:
-            error(99,"this frame dont exists")
+            error(99,"this frame type dont exists")
         return Value
     def CREATEFRAME(self):
         self.TF=frame()
@@ -202,16 +202,16 @@ class memory(object):
                 error(52,"Defvar err-duplicit name of var in GF")
             self.GF.varS[var.value]=notInicializet()
         elif var.placement=="LF":
-            if var.value in self.stack[-1].varS:
+            if self.LF==None:
+                error(55,"LF Frame dont exist")
+            elif var.value in self.stack[-1].varS:
                 error(52,"Defvar err-duplicit name of var in LF")
-            elif self.LF==None:
-                error(52,"LF Frame dont exist")
             self.stack[-1].varS[var.value]=notInicializet()
         elif var.placement=="TF":
-            if var.value in self.TF.varS:
+            if self.TF==None:
+                error(55,"TF Frame dont exist")
+            elif var.value in self.TF.varS:
                 error(52,"Defvar err-duplicit name of var in TF")
-            elif self.TF==None:
-                error(52,"TF Frame dont exist")
             self.TF.varS[var.value]=notInicializet()
         else:
             error(99,"defvar err")
@@ -227,10 +227,10 @@ class memory(object):
             LF=self.LF.varS
         return "<Mem - GF:\n %s  \nLF:\n %s \nTF:\n %s \nstack:\n%s>\n" % (self.GF.varS,LF, TF,self.stack)
 class program(object):   
-    instructructions={}
+    instructructions=[]
     jTable=jumpTable()
     mem=memory()
-    counter=1
+    counter=0
     procesedInstruct=0
     inputSource=None
     inputFile=None
@@ -239,7 +239,7 @@ class program(object):
         self.instructructions=instructructions
         self.jTable=jumpTable()
         self.mem=memory()
-        self.counter=1
+        self.counter=0
         self.procesedInstruct=0
     def setInput(self,InputS):
         self.inputSource=InputS
@@ -251,20 +251,19 @@ class program(object):
     def __repr__(self):
         return "<Program: - instructions:\n %s \nJumptable:\n %s" % (self.instructructions,self.jTable)    
     def firstRun(self):
-        for i in range(1, len(self.instructructions)+1):
-            if(self.instructructions[str(i)].Type=="LABEL"):
-                name=self.instructructions[str(i)].args["1"].value
+        for i in range(0, len(self.instructructions)):
+            if(self.instructructions[i].Type=="LABEL"):
+                name=self.instructructions[i].args["1"].value
                 if(name in self.jTable.table):
-                    error(32,"duplicit label")
+                    error(52,"duplicit label")
                 else:
                     self.jTable.table[name]=i
     def secondRun(self):
-        while self.counter<=len(self.instructructions):
+        while self.counter<len(self.instructructions):
             self.procesedInstruct+=1
-            self.execute(self.instructructions[str(self.counter)])
+            self.execute(self.instructructions[self.counter])
             self.counter+=1
     def execute(self,instruction):
-        error(0,"executing: %s"%instruction.Type)
         if instruction.Type=="MOVE":
             self.mem.MOVE(instruction.args)
         elif instruction.Type=="CREATEFRAME":
@@ -339,9 +338,15 @@ class program(object):
             error(99,"unknow procedure for instruction execution")
     def WRITE(self,args):
         if(args["1"].Type=="var"):
-            print(self.mem.readFromVar(args["1"]))
+            value=self.mem.readFromVar(args["1"])
         else:
-            print(args["1"].value) 
+            value=args["1"].value
+        if type(value)==bool:
+            if(value==True):
+                value="true"
+            else:
+                value="false"
+        print(value, end ="")
     def CALL(self,args):
         self.jTable.callStack.append((self.counter))
         self.JUMP(args)
@@ -355,7 +360,7 @@ class program(object):
         if args["1"].value in self.jTable.table:
             self.counter=self.jTable.table[args["1"].value]
         else:
-            error(-1,"Jump label isnt in code")
+            error(52,"Jump label isnt in code")
         pass
     def JUMPIFEQ(self,args):
         a=self.loadValue(args["2"])
@@ -399,7 +404,7 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if(type(a)!=type(b) or type(a)!=int):
-            error(-1,"aritmetic operants are not int")
+            error(53,"aritmetic operants are not int")
         if(operation=="ADD"):
             c=a+b
         elif(operation=="SUB"):
@@ -438,14 +443,14 @@ class program(object):
         if(operation!="NOT"):
             b=self.loadValue(args["3"])
             if(type(a)!=type(b) or type(a)!=bool):
-                error(-1,"BINARY operants are not bool")
+                error(53,"BINARY operants are not bool")
             if(operation=="AND"):
                 c=a and b
             elif(operation=="OR"):
                 c=a or b
         elif(operation=="NOT"):
             if type(a)!=bool:
-                error(-1,"BINARY operant is not bool")
+                error(53,"BINARY operant is not bool")
             c=not a
         else:
             error(99,"Binary selector failed")
@@ -465,9 +470,9 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if type(a)!=str:
-                error(-1,"STR2INT 2 operant isnt string")
+                error(58,"STR2INT 2 operant isnt string")
         elif type(b)!=int:
-            error(-1,"STR2INT 3 operant isnt int")
+            error(58,"STR2INT 3 operant isnt int")
         try:
             c=ord(a[b])
         except:
@@ -504,14 +509,14 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if (type(a)!=type(b)) or (type(a)!=str):
-            error(-1,"Concat operants isnt string")
+            error(58,"Concat operants isnt string")
         c=a+b
         self.mem.writeToVAR(args["1"],c)
     def STRLEN(self,args):
         a=self.loadValue(args["2"])
         c=None
         if (type(a)!=str):
-            error(-1,"STRLEN err- operants isnt string")
+            error(58,"STRLEN err- operants isnt string")
         c=len(a)
         self.mem.writeToVAR(args["1"],c)
     def GETCHAR(self,args):
@@ -519,7 +524,7 @@ class program(object):
         b=self.loadValue(args["3"])
         c=None
         if (type(a)!=str or type(b)!=int):
-            error(-1,"Getchar  operants isnt valid")
+            error(58,"Getchar  operants isnt valid")
         if(len(a)<=b or b<0):
             error(58,"GETCHAR err-Char in string is not reacheble")
         c=a[b]
@@ -529,7 +534,7 @@ class program(object):
         b=self.loadValue(args["2"])
         c=self.loadValue(args["3"])
         if (type(a)!=str or type(b)!=int or type(c)!=str):
-            error(-1,"SETCHAR  operants isnt valid")
+            error(58,"SETCHAR  operants isnt valid")
         if(c==""):
             error(58,"Getchar  operants isnt valid")
         if(len(a)<=b or b<0):
@@ -583,7 +588,6 @@ def programParsing(root):
     if(root.tag!="program"):
         error(32,"root tag err")
     childs=list(root)
-    childsLen=len(childs)
     instructions={}
     for child in childs:
         if(child.tag!="instruction"):
@@ -594,7 +598,7 @@ def programParsing(root):
             order=int(child.attrib["order"])
         except ValueError:
             error(32,"atribut order converzion error")
-        if(order<1 or order>childsLen or child.attrib["order"] in instructions):
+        if(order<1 or order in instructions):
             error(32,"instruction order in instruction not valid")
         args={}
         for arg in child:
@@ -609,8 +613,11 @@ def programParsing(root):
             if(ParamOrder<0 or ParamOrder>3 or arg.tag[3:] in arg):
                 error(32,"order of operand is not valid")
             args[arg.tag[3:]]=operant(arg.attrib["type"],arg.text)
-        instructions[child.attrib["order"]]=Instrucrion(child.attrib["opcode"],args)
-    return program(instructions)
+        instructions[order]=Instrucrion(child.attrib["opcode"],args)
+    array=[]
+    for inst in sorted(instructions.items()):
+        array.append(inst[1])
+    return program(array)
 def error(code,massege):
     print(massege, file=sys.stderr) 
     if(code!=0):

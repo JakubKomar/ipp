@@ -7,7 +7,7 @@
     $files=array(   //cesty k externím souborům
         "dir"           =>"./",
         "parseScript"   =>"./parse.php",
-        "intScript"     =>"./interpret.py",
+        "intScript"     =>"./interperet.py",
         "jexamxml"      =>"/pub/courses/ipp/jexamxml/jexamxml.jar",
         "jexamcfg"      =>"/pub/courses/ipp/jexamxml/options",
         );
@@ -88,7 +88,7 @@
         if(isset($options[ "jexamcfg"]))    //konfigurační soubor
             $files["jexamcfg"]=$options["jexamcfg"];  
         
-        if(!$int_only&&(!file_exists($files["jexamcfg"])||!file_exists($files["jexamxml"])))
+        if($parse_only&&(!file_exists($files["jexamcfg"])||!file_exists($files["jexamxml"])))
         {
             fprintf(STDERR,"Jaxam files path are wrong\n");
             exit(41);
@@ -135,7 +135,7 @@
             $erv = intval(fread($file, filesize($rc)));
             fclose($file);
         }
-
+        fprintf(STDERR,"testing:%s\n",$src);
         if($parse_only)  //pouze parsovací část
         {
             exec("php7.4 ".$files["parseScript"]." <".$src.".src 2>/dev/null >temporary.xml",$output , $rv);     //spuštění parsovacího skrtiptu
@@ -165,7 +165,7 @@
         }
         elseif($int_only)  //pouze iterpretační část
         {
-            exec("python ".$files["intScript"]." ".$input." <".$src.".src 2>/dev/null >temporary.code",$output , $rv);              //iterpretace
+            exec("python3 ".$files["intScript"]." <".$in." --source=".$src.".src 2>/dev/null >out.temp",$output , $rv);              //iterpretace
             if($rv!=0)
             {
                 if($erv==$rv)
@@ -178,7 +178,7 @@
             }
             else
             {
-                exec("diff ".$out." temporary.code",$output , $rv);
+                exec("diff ".$out." out.temp",$output , $rv);
                 if($rv)
                 {
                     $failcounter++;
@@ -201,7 +201,7 @@
                     $failed=TRUE;
                 }
             }
-            exec("python ".$files["intScript"]." ".$input." --source=temporary.xml 2>/dev/null >temporary.out",$output , $rv);              //iterpretace
+            exec("python3 ".$files["intScript"]." <".$in." --source=temporary.xml 2>/dev/null >out.temp",$output , $rv);               //iterpretace
             if($rv!=0)
             {
                 if($erv==$rv)
@@ -214,7 +214,7 @@
             }
             else
             {
-                exec("diff ".$out." temporary.out",$output , $rv);
+                exec("diff ".$out." out.temp",$output , $rv);
                 if($rv)
                 {
                     $failcounter++;

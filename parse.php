@@ -79,13 +79,13 @@ exit(0);
 			case "EQ":
 			case "AND":
 			case "OR":
-			case "NOT":
 			case "STRI2INT":	
 			case "CONCAT":
 			case "GETCHAR":
 			case "SETCHAR":	
 				analyzeParams($split,"VAR","SYM","SYM");
 				break;
+			case "NOT":
 			case "MOVE":
 				analyzeParams($split,"VAR","SYM");
 				break;
